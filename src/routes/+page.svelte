@@ -41,22 +41,73 @@ const bf_initial_state={
 	ip : 0,
 	output: [] as number[],
 	stack : [] as number[],
-	input_buffer: [] as number[]
+	input_buffer: [] as number[],
+	run_til_tilde : false,
+	to_break: false
 };
+const plaintext_mode=0;
+const ansi_mode=1;
+const html_mode=2;
+const bitmap_mode=3;
+
 let bfstate = $state({...bf_initial_state});
 $inspect(bfstate);
 let current_encoding_index = $state(0);
 let input_text=$state("");
 let output_mode=$state(0);
 let cell_size_index=$state(0);
+let speed=$state(256);
+let output_canvas : HTMLCanvasElement | undefined=$state(undefined);
+$inspect(output_canvas);
+function draw(){
+	if (
+		output_canvas!=undefined &&
+		bfstate.output.length > 0
+	){
+		let ctx = output_canvas.getContext("2d");
+		let padding=new Array((320*4)-Math.floor(bfstate.output.length%(320*4))).fill(0);
+		let image_data_raw=Uint8ClampedArray.from([...bfstate.output,...padding]);
+		let image_data = new ImageData(
+			image_data_raw,
+			320,image_data_raw.length/(320*4)
+		);
+		let y_offset=0;
+		if (image_data_raw.length > 320*240*4){
+			y_offset=image_data_raw.length/(320*4)-240;
+		}
+		window.createImageBitmap(
+			image_data, 0,y_offset,320,240	
+		).then(image_bitmap=>{
+			ctx?.drawImage(image_bitmap,0,0);
+		})
+	}
+}
 function nearby_cells() : number[]{
 	const head_coarse=Math.floor(bfstate.tape_head/16)*16;
 	let array_copy=[...bfstate.tape];
 	return array_copy.slice(head_coarse, head_coarse+15);
 }
+function run() {
+	if (bfstate.to_break) {
+		bfstate.to_break=false;
+	} else {
+		let interval=speed;
+		do {
+			step();
+			interval--;
+		} while(interval>0 && !bfstate.to_break);
+		if (!bfstate.to_break){
+			console.log("pause");
+			if (output_mode==bitmap_mode)
+				draw();
+			setTimeout(run, 500);
+		}
+	}
+}
 function step() : boolean {
 	const command=bfstate.program.charAt(bfstate.ip);
 	console.log(command);
+	let to_break=false;
 	if (command=="+"){
 		bfstate.tape[bfstate.tape_head]++;
 		if (bfstate.tape[bfstate.tape_head]==256){
@@ -135,14 +186,20 @@ function step() : boolean {
 		}
 			
 	}
+	else  if (command=='~'){
+		to_break=bfstate.run_til_tilde;
+	}
 	
-	
+	bfstate.to_break=false;
 	if(bfstate.ip < bfstate.program.length){
 		bfstate.ip++;
+		if (to_break)
+		bfstate.to_break=true;
+		
 	} else {
-		return true;
+		bfstate.to_break=true;
 	}
-	return false;
+	return bfstate.to_break;
 }
 function reset(){
 	bfstate=bf_initial_state;
@@ -187,7 +244,8 @@ function positionProgramCursor() : string {
 	const row=Math.floor(bfstate.ip/64);
 	return `translate(${bfstate.ip%64}ch,${row*2}em)`;
 }
-function draw(){
+/*
+function draw(canvas){
 	console.log("draw\n");
 	let canvas=document.getElementById("output-canvas") as HTMLCanvasElement;
 	let ctx = canvas.getContext("2d");
@@ -202,6 +260,7 @@ function draw(){
 	})
 	return undefined;
 }
+*/
 function get_output(): string{
 	const encoding=encodings[current_encoding_index].codepage;
 	return utils.decode(encoding,Uint8Array.from(bfstate.output));
@@ -212,9 +271,17 @@ function get_output(): string{
 	<div class="codebox-area">
 		<textarea id="codebox" class="codebox"></textarea>
 		<div class="button-area">
-			<button onclick={()=>{while(!step());}}>run</button>
+			<button onclick={()=>{
+				bfstate.run_til_tilde=false;
+				run()
+			}}>run</button>
+			<button onclick={()=>{
+				bfstate.run_til_tilde=true;
+				run()
+			}}>run til ~</button>
 			<button onclick={step}>step</button>
 			<button onclick={reset}>reset</button>
+			<button onclick={()=>bfstate.to_break=true}>stop</button>
 		</div>
 		<textarea class="input_box"
 			bind:value={
@@ -245,15 +312,14 @@ function get_output(): string{
 
 	<div class="output-area">
 		<div class="output">
-			{#if output_mode==0}
+			{#if output_mode==plaintext_mode}
 {get_output()}
-			{:else if output_mode==1}
+			{:else if output_mode==ansi_mode}
 			{@html ansiHTML.default(get_output())}
-			{:else if output_mode==2}
+			{:else if output_mode==html_mode}
 			{@html get_output()}
-			{:else if output_mode==3}
-			<canvas id="output-canvas" class="output-canvas">
-			</canvas>
+			{:else if output_mode==bitmap_mode}
+			<canvas bind:this={output_canvas} class="output-canvas"></canvas>
 			{/if}
 		</div>
 		
@@ -267,8 +333,9 @@ function get_output(): string{
 			<option>Plaintext</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
-			<!--<option>Bitmap</option>-->
+			<option>Bitmap</option>
 		</select>
+		Speed:<input type="number" value=256 onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}>
 	</div>
 
 </div>
