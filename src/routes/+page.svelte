@@ -32,7 +32,7 @@ const encodings=[
 	{name: "Windows 1256 (Arabic)",codepage: 1256},
 	{name: "Windows 1257 (Baltic)",codepage: 1257},
 	{name: "Windows 1258 (Vietnamese)",codepage: 1258},
-	{name: "EBCDIC 🤮", codepage: 37}
+	{name: "EBCDIC \u{1F92E}", codepage: 37}
 ];
 const bf_initial_state={
 	tape_head: 16,
@@ -187,24 +187,25 @@ function positionProgramCursor() : string {
 	const row=Math.floor(bfstate.ip/64);
 	return `translate(${bfstate.ip%64}ch,${row*2}em)`;
 }
-
-function get_formatted_output(): string{
-	const encoding=encodings[current_encoding_index].codepage;
-	let output=utils.decode(encoding,Uint8Array.from(bfstate.output));
-	switch(output_mode) {
-		case 1:
-			console.log(ansiHTML);
-			output=ansiHTML.default(output);
-		case 0:
-		case 2:
-			break;
-		default:
-			return "unimplemented";
-
-	}
-	return output;
+function draw(){
+	console.log("draw\n");
+	let canvas=document.getElementById("output-canvas") as HTMLCanvasElement;
+	let ctx = canvas.getContext("2d");
+	let image_data = new ImageData(
+		Uint8ClampedArray.from(bfstate.output),
+		320,Math.floor(bfstate.output.length/320)
+	);
+	window.createImageBitmap(
+		image_data, 0,0,320,240	
+	).then(image_bitmap=>{
+		ctx?.drawImage(image_bitmap,0,0);
+	})
+	return undefined;
 }
-
+function get_output(): string{
+	const encoding=encodings[current_encoding_index].codepage;
+	return utils.decode(encoding,Uint8Array.from(bfstate.output));
+}
 </script>
 <main>
 <div class="main">
@@ -245,9 +246,14 @@ function get_formatted_output(): string{
 	<div class="output-area">
 		<div class="output">
 			{#if output_mode==0}
-{get_formatted_output()}
-			{:else}
-			{@html get_formatted_output()}
+{get_output()}
+			{:else if output_mode==1}
+			{@html ansiHTML.default(get_output())}
+			{:else if output_mode==2}
+			{@html get_output()}
+			{:else if output_mode==3}
+			<canvas id="output-canvas" class="output-canvas">
+			</canvas>
 			{/if}
 		</div>
 		
@@ -261,6 +267,7 @@ function get_formatted_output(): string{
 			<option>Plaintext</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
+			<!--<option>Bitmap</option>-->
 		</select>
 	</div>
 
@@ -303,7 +310,12 @@ button {
 	display: flex;
 	
 }
-
+.output-canvas {
+	width: 320px;
+	height:240px;
+	background-color: black;
+	
+}
 .main {
 	display:flex;
 	flex-direction: row;
