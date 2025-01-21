@@ -51,6 +51,7 @@ const plaintext_mode=0;
 const ansi_mode=1;
 const html_mode=2;
 const bitmap_mode=3;
+const truecolor_bitmap_mode=4;
 
 let bfstate = $state({...bf_initial_state});
 $inspect(bfstate);
@@ -75,30 +76,36 @@ function draw(){
 		bfstate.output.length > 0
 	){
 		let ctx = output_canvas.getContext("2d");
-		let image_data_arr=bfstate.output.flatMap(
-			(bits)=>{
-				let mask=1;
-				let arr=[];
-				for (let i=0; i<8; i++){
-					if (bits&mask)
-						arr.push(255);
-					else 
-						arr.push(0);
-					mask<<=1;
+		let image_data_arr = [] as number[];
+		if (output_mode == truecolor_bitmap_mode){
+			image_data_arr=bfstate.output;
+		} else {
+			image_data_arr=bfstate.output.flatMap(
+				(bits)=>{
+					let mask=1;
+					let arr=[];
+					for (let i=0; i<8; i++){
+						if (bits&mask)
+							arr.push(255);
+						else 
+							arr.push(0);
+						mask<<=1;
+					}
+					return [
+						arr[7],arr[7],arr[7],255,
+						arr[6],arr[6],arr[6],255,
+						arr[5],arr[5],arr[5],255,
+						arr[4],arr[4],arr[4],255,
+						arr[3],arr[3],arr[3],255,
+						arr[2],arr[2],arr[2],255,
+						arr[1],arr[1],arr[1],255,
+						arr[0],arr[0],arr[0],255
+					];
+					
 				}
-				return [
-					arr[7],arr[7],arr[7],255,
-					arr[6],arr[6],arr[6],255,
-					arr[5],arr[5],arr[5],255,
-					arr[4],arr[4],arr[4],255,
-					arr[3],arr[3],arr[3],255,
-					arr[2],arr[2],arr[2],255,
-					arr[1],arr[1],arr[1],255,
-					arr[0],arr[0],arr[0],255
-				];
-				
-			}
-		)
+			)
+		}
+		
 		let padding=new Array((320*4)-Math.floor(image_data_arr.length%(320*4))).fill(0);
 		let image_data_raw=new Uint8ClampedArray([...image_data_arr,...padding]);
 		console.log(`draw ${image_data_raw}`);
@@ -131,7 +138,7 @@ function run() {
 			step();
 			interval--;
 		} while(interval>0 && !bfstate.to_break);
-		if (output_mode==bitmap_mode)
+		if (output_mode==bitmap_mode || output_mode==truecolor_bitmap_mode)
 			draw();
 		if (!bfstate.to_break){
 			setTimeout(run, 500);
@@ -335,7 +342,7 @@ function get_output(): string{
 			{@html ansiHTML.default(get_output())}
 			{:else if output_mode==html_mode}
 			{@html get_output()}
-			{:else if output_mode==bitmap_mode}
+			{:else if output_mode==bitmap_mode || output_mode==truecolor_bitmap_mode}
 			<canvas
 				bind:this={output_canvas}
 				class="output-canvas"
@@ -351,10 +358,11 @@ function get_output(): string{
 			{/each}
 		</select>
 		<select onchange={e=>output_mode=(e.target! as HTMLSelectElement).selectedIndex}>
-			<option>Plaintext</option>
+			<option selected=true>Plaintext</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
 			<option>Bitmap</option>
+			<option>Bitmap (RGBA)</option>
 		</select>
 		Speed:<input type="number" value=256 onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}>
 	</div>
