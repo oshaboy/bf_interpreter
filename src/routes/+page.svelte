@@ -3,36 +3,38 @@ import * as ansiHTML from "ansi-html";
 import codepage from "codepage"
 const {utils}=codepage;
 const encodings=[
-	{name: "UTF-8 (Default)",         codepage: 65001},
-	{name: "Codepage 437 (OEM/VGA)",  codepage: 437},
-	{name: "ISO-8859-1 (West Europe)",codepage: 28591},
-	{name: "ISO-8859-2 (East Europe)",codepage: 28592},
-	{name: "ISO-8859-3 (Maltese)",    codepage: 28593},
-	{name: "ISO-8859-4 (Scandinavia)",codepage: 28594},
-	{name: "ISO-8859-5 (Cyrillic)",   codepage: 28595},
-	{name: "ISO-8859-6 (Arabic)",codepage: 28596},
-	{name: "ISO-8859-7 (Greek)",codepage: 28597},
-	{name: "ISO-8859-8 (Hebrew)",codepage: 28598},
-	{name: "ISO-8859-9 (Turkish)",codepage: 28599},
-	{name: "ISO-8859-10 (Nordic)",codepage: 28600},
-	{name: "ISO-8859-11 (Thai)",codepage: 28601},
-	{name: "ISO-8859-13 (Baltic)",codepage: 28603},
-	{name: "ISO-8859-14 (Celtic)",codepage: 28604},
-	{name: "ISO-8859-15 (West Europe)",codepage: 28605},
-	{name: "ISO-8859-16 (East Europe)",codepage: 28606},
-	{name: "KOI-8-R",codepage:20866},
-	{name: "KOI-8-U",codepage:21866},
-	{name: "Shift JIS (Japanese)",codepage: 932},
-	{name: "Windows 1250 (East Europe)",codepage: 1250},
-	{name: "Windows 1251 (Cyrillic)",codepage: 1251},
-	{name: "Windows 1252 (West Europe)",codepage: 1252},
-	{name: "Windows 1253 (Greek)",codepage: 1253},
-	{name: "Windows 1254 (Turkish)",codepage: 1250},
-	{name: "Windows 1255 (Hebrew)",codepage: 1255},
-	{name: "Windows 1256 (Arabic)",codepage: 1256},
-	{name: "Windows 1257 (Baltic)",codepage: 1257},
-	{name: "Windows 1258 (Vietnamese)",codepage: 1258},
-	{name: "EBCDIC \u{1F92E}", codepage: 37}
+	{name: "UTF-8 (Default)",                 codepage: 65001},
+	{name: "Codepage 437 (OEM/VGA)",          codepage: 437  },
+	{name: "GB18030 (Simplified Chinese)",    codepage: 54936},
+	{name: "ISO-8859-1 (West Europe)",        codepage: 28591},
+	{name: "ISO-8859-2 (East Europe)",        codepage: 28592},
+	{name: "ISO-8859-3 (Maltese)",            codepage: 28593},
+	{name: "ISO-8859-4 (Scandinavia)",        codepage: 28594},
+	{name: "ISO-8859-5 (Cyrillic)",           codepage: 28595},
+	{name: "ISO-8859-6 (Arabic)",             codepage: 28596},
+	{name: "ISO-8859-7 (Greek)",              codepage: 28597},
+	{name: "ISO-8859-8 (Hebrew)",             codepage: 28598},
+	{name: "ISO-8859-9 (Turkish)",            codepage: 28599},
+	{name: "ISO-8859-10 (Nordic)",            codepage: 28600},
+	{name: "ISO-8859-11 (Thai)",              codepage: 28601},
+	{name: "ISO-8859-13 (Baltic)",            codepage: 28603},
+	{name: "ISO-8859-14 (Celtic)",            codepage: 28604},
+	{name: "ISO-8859-15 (West Europe)",       codepage: 28605},
+	{name: "ISO-8859-16 (East Europe)",       codepage: 28606},
+	{name: "KOI-8-R",                         codepage: 20866},
+	{name: "KOI-8-U",                         codepage: 21866},
+	{name: "Shift JIS (Japanese)",            codepage: 932  },
+	{name: "UTF-16",                          codepage: 1200 },
+	{name: "Windows 1250 (East Europe)",      codepage: 1250 },
+	{name: "Windows 1251 (Cyrillic)",         codepage: 1251 },
+	{name: "Windows 1252 (West Europe)",      codepage: 1252 },
+	{name: "Windows 1253 (Greek)",            codepage: 1253 },
+	{name: "Windows 1254 (Turkish)",          codepage: 1250 },
+	{name: "Windows 1255 (Hebrew)",           codepage: 1255 },
+	{name: "Windows 1256 (Arabic)",           codepage: 1256 },
+	{name: "Windows 1257 (Baltic)",           codepage: 1257 },
+	{name: "Windows 1258 (Vietnamese)",       codepage: 1258 },
+	{name: "EBCDIC \u{1F92E}",                codepage: 37   }
 ];
 const bf_initial_state={
 	tape_head: 16,
@@ -59,14 +61,47 @@ let cell_size_index=$state(0);
 let speed=$state(256);
 let output_canvas : HTMLCanvasElement | undefined=$state(undefined);
 $inspect(output_canvas);
+$effect(()=>{
+	if (output_canvas != undefined){
+		/*It needs to be in a promise so
+		 *svelte won't redraw whenever bfstate changes*/
+
+		new Promise(draw);
+	}
+})
 function draw(){
 	if (
 		output_canvas!=undefined &&
 		bfstate.output.length > 0
 	){
 		let ctx = output_canvas.getContext("2d");
-		let padding=new Array((320*4)-Math.floor(bfstate.output.length%(320*4))).fill(0);
-		let image_data_raw=Uint8ClampedArray.from([...bfstate.output,...padding]);
+		let image_data_arr=bfstate.output.flatMap(
+			(bits)=>{
+				let mask=1;
+				let arr=[];
+				for (let i=0; i<8; i++){
+					if (bits&mask)
+						arr.push(255);
+					else 
+						arr.push(0);
+					mask<<=1;
+				}
+				return [
+					arr[7],arr[7],arr[7],255,
+					arr[6],arr[6],arr[6],255,
+					arr[5],arr[5],arr[5],255,
+					arr[4],arr[4],arr[4],255,
+					arr[3],arr[3],arr[3],255,
+					arr[2],arr[2],arr[2],255,
+					arr[1],arr[1],arr[1],255,
+					arr[0],arr[0],arr[0],255
+				];
+				
+			}
+		)
+		let padding=new Array((320*4)-Math.floor(image_data_arr.length%(320*4))).fill(0);
+		let image_data_raw=new Uint8ClampedArray([...image_data_arr,...padding]);
+		console.log(`draw ${image_data_raw}`);
 		let image_data = new ImageData(
 			image_data_raw,
 			320,image_data_raw.length/(320*4)
@@ -96,10 +131,9 @@ function run() {
 			step();
 			interval--;
 		} while(interval>0 && !bfstate.to_break);
+		if (output_mode==bitmap_mode)
+			draw();
 		if (!bfstate.to_break){
-			console.log("pause");
-			if (output_mode==bitmap_mode)
-				draw();
 			setTimeout(run, 500);
 		}
 	}
@@ -228,7 +262,7 @@ function reset(){
 	
 	if (progstring != "" && isvalid)
 		bfstate.program = progstring;
-
+	draw();
 		
 }
 function getProgramAsString() : string{
@@ -244,23 +278,6 @@ function positionProgramCursor() : string {
 	const row=Math.floor(bfstate.ip/64);
 	return `translate(${bfstate.ip%64}ch,${row*2}em)`;
 }
-/*
-function draw(canvas){
-	console.log("draw\n");
-	let canvas=document.getElementById("output-canvas") as HTMLCanvasElement;
-	let ctx = canvas.getContext("2d");
-	let image_data = new ImageData(
-		Uint8ClampedArray.from(bfstate.output),
-		320,Math.floor(bfstate.output.length/320)
-	);
-	window.createImageBitmap(
-		image_data, 0,0,320,240	
-	).then(image_bitmap=>{
-		ctx?.drawImage(image_bitmap,0,0);
-	})
-	return undefined;
-}
-*/
 function get_output(): string{
 	const encoding=encodings[current_encoding_index].codepage;
 	return utils.decode(encoding,Uint8Array.from(bfstate.output));
@@ -319,7 +336,11 @@ function get_output(): string{
 			{:else if output_mode==html_mode}
 			{@html get_output()}
 			{:else if output_mode==bitmap_mode}
-			<canvas bind:this={output_canvas} class="output-canvas"></canvas>
+			<canvas
+				bind:this={output_canvas}
+				class="output-canvas"
+				width=320 height=240
+			></canvas>
 			{/if}
 		</div>
 		
@@ -379,9 +400,8 @@ button {
 }
 .output-canvas {
 	width: 320px;
-	height:240px;
+	height: 240px;
 	background-color: black;
-	
 }
 .main {
 	display:flex;
