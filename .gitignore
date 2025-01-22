@@ -21,11 +21,5 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-*.png
-*.data
-
-stdin2bfstr*
-*.bf
-*.lua
-*.py
-*.jpg
+tools/data_to_bf
+/various

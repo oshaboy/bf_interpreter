@@ -49,10 +49,11 @@ const bf_initial_state={
 	to_break: false
 };
 const plaintext_mode=0;
-const ansi_mode=1;
-const html_mode=2;
-const bitmap_mode=3;
-const truecolor_bitmap_mode=4;
+const plaintext_with_substitution_mode=1;
+const ansi_mode=2;
+const html_mode=3;
+const bitmap_mode=4;
+const truecolor_bitmap_mode=5;
 
 const eight_bit_mode=0;
 const sixteen_bit_mode=1;
@@ -96,7 +97,6 @@ function draw(){
 				})
 			} else {
 				image_data_arr=bfstate.output;
-
 			}
 		} else {
 			image_data_arr=bfstate.output.flatMap(
@@ -165,7 +165,6 @@ function run() {
 }
 function step() : boolean {
 	const command=bfstate.program.charAt(bfstate.ip);
-	console.log(command);
 	let to_break=false;
 	if (command=="+"){
 		bfstate.tape[bfstate.tape_head]++;
@@ -301,14 +300,18 @@ function getProgramAsString() : string{
 	if (bfstate.program == ""){
 		return "\u{a0}";
 	} else {
-		return bfstate.program;
+		let program_chunked=[]
+		for (let i=0; i<bfstate.program.length; i+=80){
+			program_chunked.push(bfstate.program.slice(i,i+79))		}
+		console.log(program_chunked);
+		return program_chunked.join("\n");
 	}
 }
 
 
 function positionProgramCursor() : string {
-	const row=Math.floor(bfstate.ip/64);
-	return `translate(${bfstate.ip%64}ch,${row*2}em)`;
+	const row=Math.floor(bfstate.ip/80);
+	return `translate(${bfstate.ip%80}ch,${row*2}em)`;
 }
 function get_output(): string{
 	const encoding=encodings[current_encoding_index].codepage;
@@ -318,6 +321,19 @@ function get_output(): string{
 		return utils.decode(encoding,Uint8Array.from(bfstate.output));
 	}
 
+}
+function get_output_substitution(): string {
+	let s=get_output();
+	for (let i=0; i<s.length;i++) {
+		let c=s.codePointAt(i)!;
+		if (c==0x7f){
+			s=s.substring(0,i) + "\u{2421}" + s.substring(i+1);
+		} else if (c<0x20){
+			let subc=String.fromCodePoint(c+0x2400);
+			s=s.substring(0,i) + subc + s.substring(i+1);
+		}
+	}
+	return s;
 }
 </script>
 
@@ -370,6 +386,8 @@ function get_output(): string{
 		<div class="output">
 			{#if output_mode==plaintext_mode}
 {get_output()}
+			{:else if output_mode==plaintext_with_substitution_mode}
+{get_output_substitution()}
 			{:else if output_mode==ansi_mode}
 			{@html ansiHTML.default(get_output())}
 			{:else if output_mode==html_mode}
@@ -391,6 +409,7 @@ function get_output(): string{
 		</select>
 		<select onchange={e=>output_mode=(e.target! as HTMLSelectElement).selectedIndex}>
 			<option selected>Plaintext</option>
+			<option>Plaintext w/ Ascii Escape Substitution</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
 			<option>Bitmap (1-bpp)</option>
@@ -403,7 +422,12 @@ function get_output(): string{
 			<option>16-bit (UTF-16 Only)</option>
 			<option>Bigint</option>
 		</select>
-		Speed:<input type="number" value=256 onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}>
+		Speed:
+		<input
+		type="number"
+		value=256
+		onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}
+		>
 	</div>
 
 </div>
@@ -476,11 +500,10 @@ button {
 	font-size:1em;
 }
 .program{
-	width: 64ch;
+	width: 80ch;
 	line-height: 2em;
 }
 .program-area{ 
-	overflow: auto;
 	font-size:1em;
 	margin-left: 0.5em;
 	margin-right: 0.5em;
