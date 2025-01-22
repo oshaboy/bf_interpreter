@@ -88,7 +88,7 @@ String to_brainfuck_datum(Settings * settings, long datum, String buf){
             closest_cell_index=i;
         }
 	}
-    int distance=settings->current_cell-closest_cell_index;
+    int distance=closest_cell_index-settings->current_cell;
 	append_n(&buf, ">>","<<",distance);
     settings->current_cell=closest_cell_index;
 

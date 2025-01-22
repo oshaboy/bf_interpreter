@@ -1,6 +1,6 @@
 <script lang=ts>
 import * as ansiHTML from "ansi-html";
-import codepage from "codepage"
+import codepage from "codepage";
 const {utils}=codepage;
 const encodings=[
 	{name: "UTF-8 (Default)",                 codepage: 65001},
@@ -335,6 +335,16 @@ function get_output_substitution(): string {
 	}
 	return s;
 }
+function getANSI() : string{
+	let s=get_output();
+	s=s.replaceAll(" ", "\u{a0}").
+		replaceAll("&", "&amp;").
+		replaceAll("<","&lt;").
+		replaceAll(">","&gt;").
+		replaceAll("\n","<br/>");
+	console.log(ansiHTML.default(s));
+	return ansiHTML.default(s);
+}
 </script>
 
 
@@ -389,7 +399,7 @@ function get_output_substitution(): string {
 			{:else if output_mode==plaintext_with_substitution_mode}
 {get_output_substitution()}
 			{:else if output_mode==ansi_mode}
-			{@html ansiHTML.default(get_output())}
+			{@html getANSI()}
 			{:else if output_mode==html_mode}
 			{@html get_output()}
 			{:else if output_mode==bitmap_mode || output_mode==truecolor_bitmap_mode}
@@ -469,6 +479,8 @@ button {
 	background-color: black;
 	color: white;
 	display: flex;
+	white-space: pre-line;
+	word-break:break-word;
 	
 }
 .output-canvas {
