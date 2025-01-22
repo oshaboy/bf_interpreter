@@ -208,14 +208,19 @@ function step() : boolean {
 			if (input_text.length == 0){
 				bfstate.input_buffer=[0];
 			} else {
-				const codepoint=input_text.codePointAt(0)!;
-				const encoding=encodings[current_encoding_index].codepage;
-				const bytes=utils.encode(encoding,String.fromCodePoint(codepoint));
-				bfstate.input_buffer=[...(bytes as number[])];
-				if (codepoint>=0x10000){
-					input_text=input_text.slice(2);
-				} else {
+				if (cell_size_index == sixteen_bit_mode) {
+					bfstate.input_buffer=[input_text.charCodeAt(0)];
 					input_text=input_text.slice(1);
+				} else {
+					const codepoint=input_text.codePointAt(0)!;
+					const encoding=encodings[current_encoding_index].codepage;
+					const bytes=utils.encode(encoding,String.fromCodePoint(codepoint));
+					bfstate.input_buffer=[...(bytes as number[])];
+					if (codepoint>=0x10000){
+						input_text=input_text.slice(2);
+					} else {
+						input_text=input_text.slice(1);
+					}
 				}
 			}
 		} 
