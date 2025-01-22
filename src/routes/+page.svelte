@@ -39,6 +39,7 @@ const encodings=[
 const bf_initial_state={
 	tape_head: 16,
 	tape: new Array(32).fill(0) as number[],
+	/*tape_bigint: new Array(32).fill(0) as bigint[],*/
 	program : "",
 	ip : 0,
 	output: [] as number[],
@@ -52,6 +53,9 @@ const ansi_mode=1;
 const html_mode=2;
 const bitmap_mode=3;
 const truecolor_bitmap_mode=4;
+
+const eight_bit_mode=0;
+const sixteen_bit_mode=1;
 
 let bfstate = $state({...bf_initial_state});
 $inspect(bfstate);
@@ -151,15 +155,18 @@ function step() : boolean {
 	let to_break=false;
 	if (command=="+"){
 		bfstate.tape[bfstate.tape_head]++;
-		if (bfstate.tape[bfstate.tape_head]==256){
+		const max=sixteen_bit_mode?65536:256;
+		if (bfstate.tape[bfstate.tape_head]==max){
 			bfstate.tape[bfstate.tape_head]=0;
 		}
 	}
 	else if (command=="-"){
 		bfstate.tape[bfstate.tape_head]--;
 		if (bfstate.tape[bfstate.tape_head]==-1){
-			bfstate.tape[bfstate.tape_head]=255;
+			const max=(cell_size_index==sixteen_bit_mode)?65535:255;
+			bfstate.tape[bfstate.tape_head]=max;
 		}
+		
 	}
 	else if (command=="<"){
 		bfstate.tape_head--;
@@ -236,7 +243,6 @@ function step() : boolean {
 		bfstate.ip++;
 		if (to_break)
 		bfstate.to_break=true;
-		
 	} else {
 		bfstate.to_break=true;
 	}
@@ -287,7 +293,12 @@ function positionProgramCursor() : string {
 }
 function get_output(): string{
 	const encoding=encodings[current_encoding_index].codepage;
-	return utils.decode(encoding,Uint8Array.from(bfstate.output));
+	if (cell_size_index == sixteen_bit_mode){
+		return bfstate.output.map(a=>String.fromCharCode(a)).join("");
+	} else {
+		return utils.decode(encoding,Uint8Array.from(bfstate.output));
+	}
+
 }
 </script>
 
@@ -360,11 +371,16 @@ function get_output(): string{
 			{/each}
 		</select>
 		<select onchange={e=>output_mode=(e.target! as HTMLSelectElement).selectedIndex}>
-			<option selected=true>Plaintext</option>
+			<option selected>Plaintext</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
 			<option>Bitmap</option>
 			<option>Bitmap (RGBA)</option>
+		</select>
+		<select onchange={e=>cell_size_index=(e.target! as HTMLSelectElement).selectedIndex}>
+			<option selected>8-bit</option>
+			<option>16-bit (UTF-16 Only)</option>
+			<!--<option>Bigint</option>-->
 		</select>
 		Speed:<input type="number" value=256 onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}>
 	</div>
@@ -449,7 +465,7 @@ button {
 }
 .cell{
 	font-size:1em;
-	width:2em;
+	width:3em;
 	height:2em;
 	border: 1px black solid;
 	text-align: center;
