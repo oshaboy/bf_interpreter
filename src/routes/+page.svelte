@@ -141,7 +141,7 @@ function run() {
 		if (output_mode==bitmap_mode || output_mode==truecolor_bitmap_mode)
 			draw();
 		if (!bfstate.to_break){
-			setTimeout(run, 500);
+			setTimeout(run, 0);
 		}
 	}
 }
@@ -227,7 +227,7 @@ function step() : boolean {
 		}
 			
 	}
-	else  if (command=='~'){
+	else if (command=='~'){
 		to_break=bfstate.run_til_tilde;
 	}
 	
@@ -290,6 +290,8 @@ function get_output(): string{
 	return utils.decode(encoding,Uint8Array.from(bfstate.output));
 }
 </script>
+
+
 <main>
 <div class="main">
 	<div class="codebox-area">
@@ -369,6 +371,8 @@ function get_output(): string{
 
 </div>
 </main>
+
+
 <style>
 .codebox-area {
 	display: flex;
