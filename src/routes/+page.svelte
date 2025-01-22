@@ -25,6 +25,7 @@ const encodings=[
 	{name: "KOI-8-U",                         codepage: 21866},
 	{name: "Shift JIS (Japanese)",            codepage: 932  },
 	{name: "UTF-16",                          codepage: 1200 },
+	{name: "Wansung (Korean)",                codepage: 20949},
 	{name: "Windows 1250 (East Europe)",      codepage: 1250 },
 	{name: "Windows 1251 (Cyrillic)",         codepage: 1251 },
 	{name: "Windows 1252 (West Europe)",      codepage: 1252 },
@@ -38,8 +39,7 @@ const encodings=[
 ];
 const bf_initial_state={
 	tape_head: 16,
-	tape: new Array(32).fill(0) as number[],
-	/*tape_bigint: new Array(32).fill(0) as bigint[],*/
+	tape: new Array(32).fill(0n) as bigint[],
 	program : "",
 	ip : 0,
 	output: [] as number[],
@@ -56,6 +56,7 @@ const truecolor_bitmap_mode=4;
 
 const eight_bit_mode=0;
 const sixteen_bit_mode=1;
+const bigint_bit_mode=2;
 
 let bfstate = $state({...bf_initial_state});
 $inspect(bfstate);
@@ -73,7 +74,8 @@ $effect(()=>{
 
 		new Promise(draw);
 	}
-})
+});
+
 function draw(){
 	if (
 		output_canvas!=undefined &&
@@ -82,7 +84,20 @@ function draw(){
 		let ctx = output_canvas.getContext("2d");
 		let image_data_arr = [] as number[];
 		if (output_mode == truecolor_bitmap_mode){
-			image_data_arr=bfstate.output;
+			if (cell_size_index == bigint_bit_mode){
+				image_data_arr=bfstate.output.flatMap(a=>{
+					let buf=Number(a)%4294967296;
+					return [
+						(buf&0xff000000)>>24,
+						(buf&0xff0000)>>16,
+						(buf&0xff00)>>8,
+						buf&0xff
+					];
+				})
+			} else {
+				image_data_arr=bfstate.output;
+
+			}
 		} else {
 			image_data_arr=bfstate.output.flatMap(
 				(bits)=>{
@@ -128,10 +143,9 @@ function draw(){
 		})
 	}
 }
-function nearby_cells() : number[]{
+function nearby_cells() : bigint[] {
 	const head_coarse=Math.floor(bfstate.tape_head/16)*16;
-	let array_copy=[...bfstate.tape];
-	return array_copy.slice(head_coarse, head_coarse+15);
+	return bfstate.tape.slice(head_coarse, head_coarse+15);
 }
 function run() {
 	if (bfstate.to_break) {
@@ -155,15 +169,15 @@ function step() : boolean {
 	let to_break=false;
 	if (command=="+"){
 		bfstate.tape[bfstate.tape_head]++;
-		const max=sixteen_bit_mode?65536:256;
-		if (bfstate.tape[bfstate.tape_head]==max){
-			bfstate.tape[bfstate.tape_head]=0;
+		const max=(cell_size_index==sixteen_bit_mode)?65536n:256n;
+		if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head]>=max){
+			bfstate.tape[bfstate.tape_head]=0n;
 		}
 	}
 	else if (command=="-"){
 		bfstate.tape[bfstate.tape_head]--;
-		if (bfstate.tape[bfstate.tape_head]==-1){
-			const max=(cell_size_index==sixteen_bit_mode)?65535:255;
+		if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head] <= -1n){
+			const max=(cell_size_index==sixteen_bit_mode)?65535n:255n;
 			bfstate.tape[bfstate.tape_head]=max;
 		}
 		
@@ -172,9 +186,9 @@ function step() : boolean {
 		bfstate.tape_head--;
 		if (bfstate.tape_head<0){
 			const len=bfstate.tape.length;
-			const empty=new Array(len*3).fill(0);
 			bfstate.tape_head=len*3-1;
-			bfstate.tape=[...empty,...bfstate.tape];
+			const empty=new Array(len*3).fill(0n);
+			bfstate.tape=empty.concat(bfstate.tape);
 
 		}
 	}
@@ -182,12 +196,12 @@ function step() : boolean {
 		bfstate.tape_head++;
 		if (bfstate.tape_head>=bfstate.tape.length){
 			const len=bfstate.tape.length;
-			const empty=new Array(len*3).fill(0);
-			bfstate.tape=[...bfstate.tape,...empty];
+			const empty=new Array(len*3).fill(0n);
+			bfstate.tape=bfstate.tape.concat(empty);
 		}
 	}
 	else if (command=="."){
-		bfstate.output.push(bfstate.tape[bfstate.tape_head]);
+		bfstate.output.push(Number(bfstate.tape[bfstate.tape_head]));
 	}
 	else if (command==","){
 		if (bfstate.input_buffer.length==0){
@@ -205,11 +219,11 @@ function step() : boolean {
 				}
 			}
 		} 
-		bfstate.tape[bfstate.tape_head]=bfstate.input_buffer[0];
+		bfstate.tape[bfstate.tape_head]=BigInt(bfstate.input_buffer[0]);
 		bfstate.input_buffer=bfstate.input_buffer.slice(1);
 	}
 	else if (command=="["){
-		if (bfstate.tape[bfstate.tape_head] == 0) {
+		if (bfstate.tape[bfstate.tape_head] == 0n) {
 			bfstate.ip++;
 			let bracket_count=1;
 			while(bracket_count>0){
@@ -227,7 +241,7 @@ function step() : boolean {
 		
 	}
 	else if (command=="]"){
-		if (bfstate.tape[bfstate.tape_head] == 0) {
+		if (bfstate.tape[bfstate.tape_head] == 0n) {
 			bfstate.stack.pop()
 		} else {
 			bfstate.ip=bfstate.stack.at(-1)!;
@@ -249,7 +263,7 @@ function step() : boolean {
 	return bfstate.to_break;
 }
 function reset(){
-	bfstate=bf_initial_state;
+	bfstate={...bf_initial_state};
 	let progstring=
 		(document.getElementById("codebox")! as HTMLTextAreaElement).
 		value;
@@ -343,7 +357,7 @@ function get_output(): string{
 		{/each}
 		</div>
 		<div
-		style:transform={`translateX(${(bfstate.tape_head%16)*2+1}em)`}
+		style:transform={`translateX(${(bfstate.tape_head%16)*3+1.5}em)`}
 		>^</div>
 	</div>
 
@@ -377,10 +391,12 @@ function get_output(): string{
 			<option>Bitmap</option>
 			<option>Bitmap (RGBA)</option>
 		</select>
-		<select onchange={e=>cell_size_index=(e.target! as HTMLSelectElement).selectedIndex}>
+		<select onchange={e=>{
+			cell_size_index=(e.target! as HTMLSelectElement).selectedIndex;
+		}}>
 			<option selected>8-bit</option>
 			<option>16-bit (UTF-16 Only)</option>
-			<!--<option>Bigint</option>-->
+			<option>Bigint</option>
 		</select>
 		Speed:<input type="number" value=256 onchange={e=>speed=Number.parseFloat((e.target! as HTMLInputElement).value)}>
 	</div>
