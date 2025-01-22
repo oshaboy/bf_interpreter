@@ -159,7 +159,7 @@ function run() {
 		if (output_mode==bitmap_mode || output_mode==truecolor_bitmap_mode)
 			draw();
 		if (!bfstate.to_break){
-			setTimeout(run, 0);
+			setTimeout(run,0);
 		}
 	}
 }
@@ -388,7 +388,7 @@ function get_output(): string{
 			<option selected>Plaintext</option>
 			<option>ECMA-48 (ANSI)</option>
 			<option>HTML</option>
-			<option>Bitmap</option>
+			<option>Bitmap (1-bpp)</option>
 			<option>Bitmap (RGBA)</option>
 		</select>
 		<select onchange={e=>{
@@ -456,13 +456,14 @@ button {
 }
 .debug-area {
 	margin-left: 10px;
-	height: 20em;
+	min-height: 10em;
+	min-width: 20em;
+	width: auto;
+	height: auto;
 	background-color: lightgray;
 	font-family: monospace;
 	display:flex;
 	flex-direction: column;
-	height: auto;
-	min-height: 10em;
 }
 .cursor{ 
 	position:absolute;
@@ -474,7 +475,7 @@ button {
 	line-height: 2em;
 }
 .program-area{ 
-	display:flex;
+	overflow: auto;
 	font-size:1em;
 	margin-left: 0.5em;
 	margin-right: 0.5em;
