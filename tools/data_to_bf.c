@@ -59,8 +59,9 @@ void initialize_settings(Settings * settings){
 	if (settings->clobbered_cells==0)
 		settings->clobbered_cells=4;
 	
-	if (settings->free_cells==NULL)
-		settings->free_cells=malloc(settings->clobbered_cells*sizeof(long));
+	if (settings->free_cells==NULL) 
+		settings->free_cells=calloc(settings->clobbered_cells,sizeof(long));
+	
 
 	if (settings->stream == NULL){
 		settings->stream=stdin;
@@ -113,7 +114,8 @@ String to_brainfuck_datum(Settings * settings, long datum, String buf){
 char * to_brainfuck_stream(Settings * settings){
 	long datum=0;
 	String buf={0};
-
+	append_n(&buf, "[-]>[-]>",NULL, settings->clobbered_cells);
+	append_n(&buf, "<<", NULL, settings->clobbered_cells);
 	while (!feof(settings->stream)){
 		fread(&datum, settings->bits, 1, settings->stream);
 		if (!feof(settings->stream))

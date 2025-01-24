@@ -84,63 +84,65 @@ function draw(){
 	){
 		let ctx = output_canvas.getContext("2d");
 		let image_data_arr = [] as number[];
-		if (output_mode == truecolor_bitmap_mode){
-			if (cell_size_index == bigint_bit_mode){
-				image_data_arr=bfstate.output.flatMap(a=>{
-					let buf=Number(a)%4294967296;
-					return [
-						(buf&0xff000000)>>24,
-						(buf&0xff0000)>>16,
-						(buf&0xff00)>>8,
-						buf&0xff
-					];
-				})
-			} else {
-				image_data_arr=bfstate.output;
-			}
-		} else {
-			image_data_arr=bfstate.output.flatMap(
-				(bits)=>{
-					let mask=1;
-					let arr=[];
-					for (let i=0; i<8; i++){
-						if (bits&mask)
-							arr.push(255);
-						else 
-							arr.push(0);
-						mask<<=1;
-					}
-					return [
-						arr[7],arr[7],arr[7],255,
-						arr[6],arr[6],arr[6],255,
-						arr[5],arr[5],arr[5],255,
-						arr[4],arr[4],arr[4],255,
-						arr[3],arr[3],arr[3],255,
-						arr[2],arr[2],arr[2],255,
-						arr[1],arr[1],arr[1],255,
-						arr[0],arr[0],arr[0],255
-					];
-					
+		if (ctx){
+			if (output_mode == truecolor_bitmap_mode){
+				if (cell_size_index == bigint_bit_mode){
+					image_data_arr=bfstate.output.flatMap(a=>{
+						let buf=Number(a)%4294967296;
+						return [
+							(buf&0xff000000)>>24,
+							(buf&0xff0000)>>16,
+							(buf&0xff00)>>8,
+							buf&0xff
+						];
+					})
+				} else {
+					image_data_arr=bfstate.output;
 				}
-			)
+			} else {
+				image_data_arr=bfstate.output.flatMap(
+					(bits)=>{
+						let mask=1;
+						let arr=[];
+						for (let i=0; i<8; i++){
+							if (bits&mask)
+								arr.push(255);
+							else 
+								arr.push(0);
+							mask<<=1;
+						}
+						return [
+							arr[7],arr[7],arr[7],255,
+							arr[6],arr[6],arr[6],255,
+							arr[5],arr[5],arr[5],255,
+							arr[4],arr[4],arr[4],255,
+							arr[3],arr[3],arr[3],255,
+							arr[2],arr[2],arr[2],255,
+							arr[1],arr[1],arr[1],255,
+							arr[0],arr[0],arr[0],255
+						];
+						
+					}
+				)
+			}
+			
+			let padding=new Array((320*4)-Math.floor(image_data_arr.length%(320*4))).fill(0);
+			let image_data_raw=new Uint8ClampedArray([...image_data_arr,...padding]);
+			console.log(`draw ${image_data_raw}`);
+			let image_data = new ImageData(
+				image_data_raw,
+				320,image_data_raw.length/(320*4)
+			);
+			let y_offset=0;
+			if (image_data_raw.length > 320*240*4){
+				y_offset=image_data_raw.length/(320*4)-240;
+			}
+			window.createImageBitmap(
+				image_data, 0,y_offset,320,240	
+			).then(image_bitmap=>{
+				ctx.drawImage(image_bitmap,0,0);
+			})
 		}
-		
-		let padding=new Array((320*4)-Math.floor(image_data_arr.length%(320*4))).fill(0);
-		let image_data_raw=new Uint8ClampedArray([...image_data_arr,...padding]);
-		console.log(`draw ${image_data_raw}`);
-		let image_data = new ImageData(
-			image_data_raw,
-			320,image_data_raw.length/(320*4)
-		);
-		let y_offset=0;
-		if (image_data_raw.length > 320*240*4){
-			y_offset=image_data_raw.length/(320*4)-240;
-		}
-		window.createImageBitmap(
-			image_data, 0,y_offset,320,240	
-		).then(image_bitmap=>{
-			ctx?.drawImage(image_bitmap,0,0);
-		})
 	}
 }
 function nearby_cells() : bigint[] {
@@ -165,102 +167,108 @@ function run() {
 }
 function step() : boolean {
 	const command=bfstate.program.charAt(bfstate.ip);
-	let to_break=false;
-	if (command=="+"){
-		bfstate.tape[bfstate.tape_head]++;
-		const max=(cell_size_index==sixteen_bit_mode)?65536n:256n;
-		if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head]>=max){
-			bfstate.tape[bfstate.tape_head]=0n;
+	switch (String(command)){
+		case '+': {
+			bfstate.tape[bfstate.tape_head]++;
+			const max=(cell_size_index==sixteen_bit_mode)?65536n:256n;
+			if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head]>=max){
+				bfstate.tape[bfstate.tape_head]=0n;
+			}
 		}
-	}
-	else if (command=="-"){
-		bfstate.tape[bfstate.tape_head]--;
-		if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head] <= -1n){
-			const max=(cell_size_index==sixteen_bit_mode)?65535n:255n;
-			bfstate.tape[bfstate.tape_head]=max;
+		break;
+		case '-': {
+			bfstate.tape[bfstate.tape_head]--;
+			if (cell_size_index!=bigint_bit_mode && bfstate.tape[bfstate.tape_head] <= -1n){
+				const max=(cell_size_index==sixteen_bit_mode)?65535n:255n;
+				bfstate.tape[bfstate.tape_head]=max;
+			}
+			
 		}
-		
-	}
-	else if (command=="<"){
-		bfstate.tape_head--;
-		if (bfstate.tape_head<0){
-			const len=bfstate.tape.length;
-			bfstate.tape_head=len*3-1;
-			const empty=new Array(len*3).fill(0n);
-			bfstate.tape=empty.concat(bfstate.tape);
+		break;
+		case "<": {
+			bfstate.tape_head--;
+			if (bfstate.tape_head<0){
+				const len=bfstate.tape.length;
+				bfstate.tape_head=len*3-1;
+				const empty=new Array(len*3).fill(0n);
+				bfstate.tape=empty.concat(bfstate.tape);
 
+			}
 		}
-	}
-	else if (command==">"){
-		bfstate.tape_head++;
-		if (bfstate.tape_head>=bfstate.tape.length){
-			const len=bfstate.tape.length;
-			const empty=new Array(len*3).fill(0n);
-			bfstate.tape=bfstate.tape.concat(empty);
+		break;
+		case ">": {
+			bfstate.tape_head++;
+			if (bfstate.tape_head>=bfstate.tape.length){
+				const len=bfstate.tape.length;
+				const empty=new Array(len*3).fill(0n);
+				bfstate.tape=bfstate.tape.concat(empty);
+			}
 		}
-	}
-	else if (command=="."){
-		bfstate.output.push(Number(bfstate.tape[bfstate.tape_head]));
-	}
-	else if (command==","){
-		if (bfstate.input_buffer.length==0){
-			if (input_text.length == 0){
-				bfstate.input_buffer=[0];
-			} else {
-				if (cell_size_index == sixteen_bit_mode) {
-					bfstate.input_buffer=[input_text.charCodeAt(0)];
-					input_text=input_text.slice(1);
+		break;
+		case ".": {
+			bfstate.output.push(Number(bfstate.tape[bfstate.tape_head]));
+		}
+		break;
+		case ",": {
+			if (bfstate.input_buffer.length==0){
+				if (input_text.length == 0){
+					bfstate.input_buffer=[0];
 				} else {
-					const codepoint=input_text.codePointAt(0)!;
-					const encoding=encodings[current_encoding_index].codepage;
-					const bytes=utils.encode(encoding,String.fromCodePoint(codepoint));
-					bfstate.input_buffer=[...(bytes as number[])];
-					if (codepoint>=0x10000){
-						input_text=input_text.slice(2);
-					} else {
+					if (cell_size_index == sixteen_bit_mode) {
+						bfstate.input_buffer=[input_text.charCodeAt(0)];
 						input_text=input_text.slice(1);
+					} else {
+						const codepoint=input_text.codePointAt(0)!;
+						const encoding=encodings[current_encoding_index].codepage;
+						const bytes=utils.encode(encoding,String.fromCodePoint(codepoint));
+						bfstate.input_buffer=[...(bytes as number[])];
+						if (codepoint>=0x10000){
+							input_text=input_text.slice(2);
+						} else {
+							input_text=input_text.slice(1);
+						}
 					}
 				}
-			}
-		} 
-		bfstate.tape[bfstate.tape_head]=BigInt(bfstate.input_buffer[0]);
-		bfstate.input_buffer=bfstate.input_buffer.slice(1);
-	}
-	else if (command=="["){
-		if (bfstate.tape[bfstate.tape_head] == 0n) {
-			bfstate.ip++;
-			let bracket_count=1;
-			while(bracket_count>0){
-				if (bfstate.program[bfstate.ip] == "["){
-					bracket_count++;
-				} else if (bfstate.program[bfstate.ip] == "]"){
-					bracket_count--;
-					break;
-				}
+			} 
+			bfstate.tape[bfstate.tape_head]=BigInt(bfstate.input_buffer[0]);
+			bfstate.input_buffer=bfstate.input_buffer.slice(1);
+		}
+		break;
+		case "[": {
+			if (bfstate.tape[bfstate.tape_head] == 0n) {
 				bfstate.ip++;
+				let bracket_count=1;
+				while(bracket_count>0){
+					if (bfstate.program[bfstate.ip] == "["){
+						bracket_count++;
+					} else if (bfstate.program[bfstate.ip] == "]"){
+						bracket_count--;
+						break;
+					}
+					bfstate.ip++;
+				}
+			} else {
+				bfstate.stack.push(bfstate.ip);
 			}
-		} else {
-			bfstate.stack.push(bfstate.ip);
-		}
-		
-	}
-	else if (command=="]"){
-		if (bfstate.tape[bfstate.tape_head] == 0n) {
-			bfstate.stack.pop()
-		} else {
-			bfstate.ip=bfstate.stack.at(-1)!;
-		}
 			
+		}
+		break;
+		case "]": {
+			if (bfstate.tape[bfstate.tape_head] == 0n) {
+				bfstate.stack.pop()
+			} else {
+				bfstate.ip=bfstate.stack.at(-1)!;
+			}
+				
+		}
+		break;
+		case '~': {
+			bfstate.to_break=bfstate.run_til_tilde;
+		}
+		break;
 	}
-	else if (command=='~'){
-		to_break=bfstate.run_til_tilde;
-	}
-	
-	bfstate.to_break=false;
 	if(bfstate.ip < bfstate.program.length){
 		bfstate.ip++;
-		if (to_break)
-		bfstate.to_break=true;
 	} else {
 		bfstate.to_break=true;
 	}
@@ -293,7 +301,14 @@ function reset(){
 	
 	if (progstring != "" && isvalid)
 		bfstate.program = progstring;
-	draw();
+	if (output_mode == bitmap_mode || output_mode == truecolor_bitmap_mode){
+		let ctx=output_canvas!.getContext("2d");
+		if (ctx){
+			ctx.rect(0,0,320,240);
+			ctx.fillStyle="black";
+			ctx.fill();
+		}
+	}
 		
 }
 function getProgramAsString() : string{
