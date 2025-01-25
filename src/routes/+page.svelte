@@ -2,40 +2,91 @@
 import * as ansiHTML from "ansi-html";
 import codepage from "codepage";
 const {utils}=codepage;
+
+function codepage_number(encoding :number) {
+	return {
+		encoder: (str : string) => {return utils.encode(encoding,str)},
+		decoder: (buf : Uint8Array) => {return utils.decode(encoding,buf)}
+	}
+}
 const encodings=[
-	{name: "UTF-8 (Default)",                 codepage: 65001},
-	{name: "Codepage 437 (OEM/VGA)",          codepage: 437  },
-	{name: "GB18030 (Simplified Chinese)",    codepage: 54936},
-	{name: "ISO-8859-1 (West Europe)",        codepage: 28591},
-	{name: "ISO-8859-2 (East Europe)",        codepage: 28592},
-	{name: "ISO-8859-3 (Maltese)",            codepage: 28593},
-	{name: "ISO-8859-4 (Scandinavia)",        codepage: 28594},
-	{name: "ISO-8859-5 (Cyrillic)",           codepage: 28595},
-	{name: "ISO-8859-6 (Arabic)",             codepage: 28596},
-	{name: "ISO-8859-7 (Greek)",              codepage: 28597},
-	{name: "ISO-8859-8 (Hebrew)",             codepage: 28598},
-	{name: "ISO-8859-9 (Turkish)",            codepage: 28599},
-	{name: "ISO-8859-10 (Nordic)",            codepage: 28600},
-	{name: "ISO-8859-11 (Thai)",              codepage: 28601},
-	{name: "ISO-8859-13 (Baltic)",            codepage: 28603},
-	{name: "ISO-8859-14 (Celtic)",            codepage: 28604},
-	{name: "ISO-8859-15 (West Europe)",       codepage: 28605},
-	{name: "ISO-8859-16 (East Europe)",       codepage: 28606},
-	{name: "KOI-8-R",                         codepage: 20866},
-	{name: "KOI-8-U",                         codepage: 21866},
-	{name: "Shift JIS (Japanese)",            codepage: 932  },
-	{name: "UTF-16",                          codepage: 1200 },
-	{name: "Wansung (Korean)",                codepage: 20949},
-	{name: "Windows 1250 (East Europe)",      codepage: 1250 },
-	{name: "Windows 1251 (Cyrillic)",         codepage: 1251 },
-	{name: "Windows 1252 (West Europe)",      codepage: 1252 },
-	{name: "Windows 1253 (Greek)",            codepage: 1253 },
-	{name: "Windows 1254 (Turkish)",          codepage: 1250 },
-	{name: "Windows 1255 (Hebrew)",           codepage: 1255 },
-	{name: "Windows 1256 (Arabic)",           codepage: 1256 },
-	{name: "Windows 1257 (Baltic)",           codepage: 1257 },
-	{name: "Windows 1258 (Vietnamese)",       codepage: 1258 },
-	{name: "EBCDIC \u{1F92E}",                codepage: 37   }
+	{name: "UTF-8 (Default)", 				  ...codepage_number(65001)},
+	{
+		name: "Ignore Non Ascii",
+		encoder: (str:string)=>{
+			let bytes=[] as number[];
+			for (let i=0; i<str.length; i++){
+				let codepoint=str.codePointAt(i)!;
+				if (codepoint < 0x80 && codepoint >= 0)
+					bytes.push(codepoint);
+			}
+			return new Uint8Array(bytes);
+		},
+		decoder: (buf:Uint8Array)=>{
+			return [...buf].
+				filter(byte=>byte < 0x80 && byte >= 0).
+				map(byte=>String.fromCodePoint(byte)).
+				join("");
+		}
+
+	},
+	{name: "Codepage 437 (OEM/VGA)",          ...codepage_number(437)  },
+	{name: "GB18030 (Simplified Chinese)",    ...codepage_number(54936)},
+	{name: "ISO-8859-1 (West Europe)",        ...codepage_number(28591)},
+	{name: "ISO-8859-2 (East Europe)",        ...codepage_number(28592)},
+	{name: "ISO-8859-3 (Maltese)",            ...codepage_number(28593)},
+	{name: "ISO-8859-4 (Scandinavia)",        ...codepage_number(28594)},
+	{name: "ISO-8859-5 (Cyrillic)",           ...codepage_number(28595)},
+	{name: "ISO-8859-6 (Arabic)",             ...codepage_number(28596)},
+	{name: "ISO-8859-7 (Greek)",              ...codepage_number(28597)},
+	{name: "ISO-8859-8 (Hebrew)",             ...codepage_number(28598)},
+	{name: "ISO-8859-9 (Turkish)",            ...codepage_number(28599)},
+	{name: "ISO-8859-10 (Nordic)",            ...codepage_number(28600)},
+	{name: "ISO-8859-11 (Thai)",              ...codepage_number(28601)},
+	{name: "ISO-8859-13 (Baltic)",            ...codepage_number(28603)},
+	{name: "ISO-8859-14 (Celtic)",            ...codepage_number(28604)},
+	{name: "ISO-8859-15 (West Europe)",       ...codepage_number(28605)},
+	{name: "ISO-8859-16 (East Europe)",       ...codepage_number(28606)},
+	{name: "KOI-8-R",                         ...codepage_number(20866)},
+	{name: "KOI-8-U",                         ...codepage_number(21866)},
+	{name: "Shift JIS (Japanese)",            ...codepage_number(932)  },
+	{
+		name: "Sign Extend (Common Bugged Implementation)",
+		encoder: (str:string)=>{
+			let bytes=[] as number[];
+			for (let i=0; i<str.length; i++){
+				let code=str.charCodeAt(i) % 256;
+				if (code < -128) code+=256;
+				if (code > 128) code-=256;
+				if (code < 0) code+=65536;
+				bytes.push(code);
+			}
+			return new Uint8Array(bytes);
+		},
+		decoder: (buf:Uint8Array)=>{
+			let codepoints=[] as string[];
+			for (let i=0; i<buf.length; i++){
+				let byte=buf[i]%256;
+				if (byte < -128) byte+=256;
+				if (byte > 128) byte-=256;
+				if (byte < 0) byte+=65536;
+				codepoints.push(String.fromCodePoint(byte));
+			}
+			return codepoints.join("");
+		}
+	},
+	{name: "UTF-16",                          ...codepage_number(1200) },
+	{name: "Wansung (Korean)",                ...codepage_number(20949)},
+	{name: "Windows 1250 (East Europe)",      ...codepage_number(1250) },
+	{name: "Windows 1251 (Cyrillic)",         ...codepage_number(1251) },
+	{name: "Windows 1252 (West Europe)",      ...codepage_number(1252) },
+	{name: "Windows 1253 (Greek)",            ...codepage_number(1253) },
+	{name: "Windows 1254 (Turkish)",          ...codepage_number(1250) },
+	{name: "Windows 1255 (Hebrew)",           ...codepage_number(1255) },
+	{name: "Windows 1256 (Arabic)",           ...codepage_number(1256) },
+	{name: "Windows 1257 (Baltic)",           ...codepage_number(1257) },
+	{name: "Windows 1258 (Vietnamese)",       ...codepage_number(1258) },
+	{name: "EBCDIC \u{1F92E}",                ...codepage_number(37)   }
 ];
 const bf_initial_state={
 	tape_head: 16,
@@ -219,8 +270,8 @@ function step() : boolean {
 						input_text=input_text.slice(1);
 					} else {
 						const codepoint=input_text.codePointAt(0)!;
-						const encoding=encodings[current_encoding_index].codepage;
-						const bytes=utils.encode(encoding,String.fromCodePoint(codepoint));
+						const encoder=encodings[current_encoding_index].encoder;
+						const bytes=encoder(String.fromCodePoint(codepoint));
 						bfstate.input_buffer=[...(bytes as number[])];
 						if (codepoint>=0x10000){
 							input_text=input_text.slice(2);
@@ -329,11 +380,11 @@ function positionProgramCursor() : string {
 	return `translate(${bfstate.ip%80}ch,${row*2}em)`;
 }
 function get_output(): string{
-	const encoding=encodings[current_encoding_index].codepage;
+	const decoder=encodings[current_encoding_index].decoder;
 	if (cell_size_index == sixteen_bit_mode){
 		return bfstate.output.map(a=>String.fromCharCode(a)).join("");
 	} else {
-		return utils.decode(encoding,Uint8Array.from(bfstate.output));
+		return decoder(Uint8Array.from(bfstate.output));
 	}
 
 }
