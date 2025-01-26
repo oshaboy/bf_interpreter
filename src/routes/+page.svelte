@@ -9,6 +9,7 @@ function codepage_number(encoding :number) {
 		decoder: (buf : Uint8Array) => {return utils.decode(encoding,buf)}
 	}
 }
+
 const encodings=[
 	{name: "UTF-8 (Default)", 				  ...codepage_number(65001)},
 	{
@@ -155,23 +156,15 @@ function draw(){
 					(bits)=>{
 						let mask=1;
 						let arr=[];
-						for (let i=0; i<8; i++){
+						let bitness=(cell_size_index==sixteen_bit_mode)?16:8;
+						for (let i=0; i<bitness; i++){
 							if (bits&mask)
 								arr.push(255);
 							else 
 								arr.push(0);
 							mask<<=1;
 						}
-						return [
-							arr[7],arr[7],arr[7],255,
-							arr[6],arr[6],arr[6],255,
-							arr[5],arr[5],arr[5],255,
-							arr[4],arr[4],arr[4],255,
-							arr[3],arr[3],arr[3],255,
-							arr[2],arr[2],arr[2],255,
-							arr[1],arr[1],arr[1],255,
-							arr[0],arr[0],arr[0],255
-						];
+						return arr.flatMap(bit=>[bit,bit,bit,255]);
 						
 					}
 				)
