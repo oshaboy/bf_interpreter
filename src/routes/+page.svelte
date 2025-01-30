@@ -178,15 +178,15 @@ function draw(){
 			} else {
 				image_data_arr=bfstate.output.flatMap(
 					(bits)=>{
-						let mask=1;
 						let arr=[];
 						let bitness=(cell_size_index==sixteen_bit_mode)?16:8;
+						let mask=1<<(bitness-1);
 						for (let i=0; i<bitness; i++){
 							if (bits&mask)
 								arr.push(255);
 							else 
 								arr.push(0);
-							mask<<=1;
+							mask>>=1;
 						}
 						return arr.flatMap(bit=>[bit,bit,bit,255]);
 						
@@ -374,6 +374,7 @@ function reset(){
 	}
 	if (bracket_count != 0)
 		isvalid=false;
+	file=undefined;
 	
 	if (progstring != "" && isvalid)
 		bfstate.program = progstring;
@@ -385,7 +386,6 @@ function reset(){
 			ctx.fill();
 		}
 	}
-	file=undefined;
 		
 }
 function getProgramAsString() : string{
@@ -434,7 +434,6 @@ function getANSI() : string{
 		replaceAll("<","&lt;").
 		replaceAll(">","&gt;").
 		replaceAll("\n","<br/>");
-	console.log(ansiHTML.default(s));
 	return ansiHTML.default(s);
 }
 </script>

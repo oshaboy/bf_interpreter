@@ -7,12 +7,25 @@ const char * help="\
 -f [file]\n\
 -b [8/16/32] : interpreter cell is n bits\n\
 -c [num] : use n interpreter cells\n\
+-r : bit reverse \n\
 -h : you literally just used it";
 enum Bitness{
 	EIGHT_BIT=1,
 	SIXTEEN_BIT=2,
 	THIRTY_TWO_BIT=4
 };
+long bit_reverse(long c, enum Bitness bitness){
+	int mask=1<<(bitness*8-1);
+	long result=0;
+	while (mask > 0){
+		result>>=1;
+		if (mask & c){
+			result|=(1<<(bitness*8-1));
+		}
+		mask>>=1;
+	}
+	return result;
+}
 typedef struct {
 	long * free_cells;
 	FILE * stream;
@@ -20,6 +33,7 @@ typedef struct {
 	int current_cell;
 	enum Bitness bits : 8;
 	bool is_stream_a_file : 1;
+	bool bit_reverse : 1;
 } Settings;
 typedef struct {
     char * s;
@@ -118,6 +132,9 @@ char * to_brainfuck_stream(Settings * settings){
 	append_n(&buf, "<<", NULL, settings->clobbered_cells);
 	while (!feof(settings->stream)){
 		fread(&datum, settings->bits, 1, settings->stream);
+		if (settings->bit_reverse){
+			datum=bit_reverse(datum, settings->bits);
+		}
 		if (!feof(settings->stream))
 			buf=to_brainfuck_datum(settings,datum,buf);
 		
@@ -128,14 +145,14 @@ char * to_brainfuck_stream(Settings * settings){
 int main(int argc, char * argv[]){
 	Settings settings={0};
 	initialize_settings(&settings);
-	for (int i=1; i<argc; i+=2){
+	for (int i=1; i<argc; i++){
 		if (argv[i][0]=='-'){
 			switch(argv[i][1]){
 				case 'c':
 					settings.clobbered_cells=atoi(argv[i+1]);
 					if (settings.clobbered_cells <= 0)
 						settings.clobbered_cells=4;
-					
+					i++;
 					break;
 
 				case 'b':
@@ -150,6 +167,7 @@ int main(int argc, char * argv[]){
 							settings.bits=THIRTY_TWO_BIT;
 							break;
 					}
+					i++;
 					break;
 				
 				case 'f':
@@ -158,6 +176,10 @@ int main(int argc, char * argv[]){
 						settings.is_stream_a_file=true;
 					else 
 						exit(1);
+					i++;
+					break;
+				case 'r':
+					settings.bit_reverse=true;
 					break;
 				case 'h':
 					printf("%s\n",help);
