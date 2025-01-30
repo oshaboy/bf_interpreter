@@ -11,8 +11,6 @@ function codepage_number(encoding :number) {
 }
 function load_file(){
 	if (file != undefined){
-		let file_=file[0];
-		console.log(file_);
 		const reader=new FileReader();
 		reader.onload=(e)=>{
 			if (e.target != null){
@@ -31,7 +29,7 @@ function load_file(){
 				}
 			}
 		}
-		reader.readAsArrayBuffer(file_);
+		reader.readAsArrayBuffer(file[0]);
 
 	}
 }
@@ -387,6 +385,7 @@ function reset(){
 			ctx.fill();
 		}
 	}
+	file=undefined;
 		
 }
 function getProgramAsString() : string{
@@ -395,8 +394,8 @@ function getProgramAsString() : string{
 	} else {
 		let program_chunked=[]
 		for (let i=0; i<bfstate.program.length; i+=80){
-			program_chunked.push(bfstate.program.slice(i,i+79))		}
-		console.log(program_chunked);
+			program_chunked.push(bfstate.program.slice(i,i+79))
+		}
 		return program_chunked.join("\n");
 	}
 }
