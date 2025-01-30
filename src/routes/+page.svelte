@@ -9,7 +9,23 @@ function codepage_number(encoding :number) {
 		decoder: (buf : Uint8Array) => {return utils.decode(encoding,buf)}
 	}
 }
+function load_file(){
+	if (file != undefined){
+		let file_=file[0];
+		console.log(file_);
+		const reader=new FileReader();
+		reader.onload=(e)=>{
+			if (e.target != null){
+				if (cell_size_index != sixteen_bit_mode) {
+					bfstate.input_buffer=[...new Uint8Array(e.target.result as ArrayBuffer)];
+					console.log(bfstate.input_buffer);
+				}
+			}
+		}
+		reader.readAsArrayBuffer(file_);
 
+	}
+}
 const encodings=[
 	{name: "UTF-8 (Default)", 				  ...codepage_number(65001)},
 	{
@@ -119,6 +135,7 @@ let output_mode=$state(0);
 let cell_size_index=$state(0);
 let speed=$state(256);
 let output_canvas : HTMLCanvasElement | undefined=$state(undefined);
+let file : FileList | undefined = $state(undefined);
 $inspect(output_canvas);
 $effect(()=>{
 	if (output_canvas != undefined){
@@ -211,6 +228,7 @@ function run() {
 }
 function step() : boolean {
 	const command=bfstate.program.charAt(bfstate.ip);
+	let did_input_on_empty_buffer=false;
 	switch (String(command)){
 		case '+': {
 			bfstate.tape[bfstate.tape_head]++;
@@ -256,7 +274,8 @@ function step() : boolean {
 		case ",": {
 			if (bfstate.input_buffer.length==0){
 				if (input_text.length == 0){
-					bfstate.input_buffer=[0];
+					bfstate.to_break=true;
+					did_input_on_empty_buffer=true;
 				} else {
 					if (cell_size_index == sixteen_bit_mode) {
 						bfstate.input_buffer=[input_text.charCodeAt(0)];
@@ -266,16 +285,21 @@ function step() : boolean {
 						const encoder=encodings[current_encoding_index].encoder;
 						const bytes=encoder(String.fromCodePoint(codepoint));
 						bfstate.input_buffer=[...(bytes as number[])];
-						if (codepoint>=0x10000){
+						if (codepoint>=0x10000) {
 							input_text=input_text.slice(2);
 						} else {
 							input_text=input_text.slice(1);
 						}
 					}
 				}
+
 			} 
-			bfstate.tape[bfstate.tape_head]=BigInt(bfstate.input_buffer[0]);
-			bfstate.input_buffer=bfstate.input_buffer.slice(1);
+			if (!did_input_on_empty_buffer){
+				bfstate.tape[bfstate.tape_head]=BigInt(bfstate.input_buffer[0]);
+				bfstate.input_buffer=bfstate.input_buffer.slice(1);
+			}
+				
+
 		}
 		break;
 		case "[": {
@@ -311,7 +335,7 @@ function step() : boolean {
 		}
 		break;
 	}
-	if(bfstate.ip < bfstate.program.length){
+	if (!did_input_on_empty_buffer && bfstate.ip < bfstate.program.length){
 		bfstate.ip++;
 	} else {
 		bfstate.to_break=true;
@@ -337,7 +361,8 @@ function reset(){
 				break;
 			}
 		} else if (c==" "){
-			progstring=progstring.substring(0,i) + "\u{a0}" + progstring.substring(i+1);
+			progstring=progstring.substring(0,i) +
+				"\u{a0}" + progstring.substring(i+1);
 		}
 	}
 	if (bracket_count != 0)
@@ -430,6 +455,9 @@ function getANSI() : string{
 			(value)=>{input_text=value}
 			}
 		></textarea>
+		<input bind:files={file} type="file"
+			onchange={load_file}
+		>
 	</div>
 	
 	<div class="debug-area">
@@ -521,7 +549,6 @@ function getANSI() : string{
 button {
 	width:3em;
 }
-
 .button-area {
 	display: flex;
 	position:relative;
