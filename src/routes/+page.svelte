@@ -16,9 +16,18 @@ function load_file(){
 		const reader=new FileReader();
 		reader.onload=(e)=>{
 			if (e.target != null){
-				if (cell_size_index != sixteen_bit_mode) {
+				switch (cell_size_index){
+					case eight_bit_mode:
 					bfstate.input_buffer=[...new Uint8Array(e.target.result as ArrayBuffer)];
-					console.log(bfstate.input_buffer);
+					break;
+
+					case sixteen_bit_mode:
+					bfstate.input_buffer=[...new Uint16Array(e.target.result as ArrayBuffer)];
+					break;
+
+					case bigint_bit_mode:
+					bfstate.input_buffer=[...new Uint32Array(e.target.result as ArrayBuffer)];
+					break;
 				}
 			}
 		}
