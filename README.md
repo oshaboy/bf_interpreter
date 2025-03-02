@@ -27,13 +27,13 @@ The more problematic example program is the following
 
 	,[.-]
 
-Most brainfuck implementations assume `,` will only return a character that will fit in a byte. If you input a character that isn't in ISO-8859-1 it will try to write a 16 bit value to a cell that's only supposed to have an 8-bit value. Sometimes the interpreter clamps, wraps or otherwise sanitizes the input (Sometimes by design, sometimes because the implementation uses a Uint8Array). But sometimes it just absentmindedly puts a 16-bit value into the cell which you can freely increment and/or decrement. (Sometimes decrementing works but incrementing doesn't because the programmer only checks for underflow when decrementing, not overflow). And now that you have a 16-bit value things really break. The program above just starts printing all the codepoints beforehand which might break other stuff. Though theoretically you can do with this whatever you want. Including potentially incrementing it all the way to Number.MAX_SAFE_INTEGER. 
+Many brainfuck implementations assume `,` will only return a character that will fit in a byte. If you input a character that isn't in ISO-8859-1 it will try to write a 16 bit value to a cell that's only supposed to have an 8-bit value. Sometimes the interpreter clamps, wraps or otherwise sanitizes the input (Sometimes by design, sometimes because the implementation uses a Uint8Array). But sometimes it just absentmindedly puts a 16-bit value into the cell which you can freely increment and/or decrement. (Sometimes decrementing works but incrementing doesn't because the programmer only checks for underflow when decrementing, not overflow). And now that you have a 16-bit value things really break. The program above just starts printing all the codepoints beforehand which might break other stuff. Though theoretically you can do with this whatever you want. Including potentially incrementing it all the way to Number.MAX_SAFE_INTEGER. 
 
 ## What you probably meant to do. 
 
 Most people are probably fine with outputting ISO-8859-1. After all, that's what the original 1993 Brainfuck by Urban Müller outputted. But some people read the [UTF-8 Everywhere](utf8everywhere.org) and decided that's unacceptable and want their joke interpreter to use state of the art 1989 Unicode handling.
 
-Well if you want ISO-8859-1 all you have to do is sanitize the input and you're golden. If you want UTF-8 it's slightly more complicated but not too complicated. 
+Well if you want ISO-8859-1 all you have to do is sanitize the input and you're golden (I'd recommend ignoring characters above 0xff instead of clamping the codepoint to it). If you want UTF-8 it's slightly more complicated but not too complicated. 
 
 	if (command == '.'){
 		output_buffer.append(tape[tape_head]);
