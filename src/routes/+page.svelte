@@ -320,6 +320,7 @@ function step() : boolean {
 					}
 					bfstate.ip++;
 				}
+				bfstate.ip--;
 			} else {
 				bfstate.stack.push(bfstate.ip);
 			}
