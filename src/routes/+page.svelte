@@ -261,7 +261,6 @@ function step() : boolean {
 				bfstate.tape_head=len*3-1;
 				const empty=new Array(len*3).fill(0n);
 				bfstate.tape=empty.concat(bfstate.tape);
-
 			}
 		}
 		break;
@@ -318,7 +317,6 @@ function step() : boolean {
 						bracket_count++;
 					} else if (bfstate.program[bfstate.ip] == "]"){
 						bracket_count--;
-						break;
 					}
 					bfstate.ip++;
 				}
