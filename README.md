@@ -31,7 +31,7 @@ Many brainfuck implementations assume `,` will only return a character that will
 
 ## What you probably meant to do. 
 
-Most people are probably fine with outputting ISO-8859-1. After all, that's what the original 1993 Brainfuck by Urban Müller outputted. But some people read the [UTF-8 Everywhere](utf8everywhere.org) and decided that's unacceptable and want their joke interpreter to use state of the art 1989 Unicode handling.
+Most people are probably fine with outputting ISO-8859-1. After all, that's what the original 1993 Brainfuck by Urban Müller outputted. But some people read the [UTF-8 Everywhere](utf8everywhere.org) and decided that's unacceptable and want their joke interpreter to use state of the art 1996 Unicode handling.
 
 Well if you want ISO-8859-1 all you have to do is sanitize the input and you're golden (I'd recommend ignoring characters above 0xff instead of clamping the codepoint to it). If you want UTF-8 it's slightly more complicated but not too complicated. 
 
